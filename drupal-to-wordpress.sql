@@ -39,12 +39,14 @@ REPLACE INTO wordpress.wp_terms
 	 	# AND LENGTH(d.name) < 50
 	)
 ;
-# TODO: Import Custom Taxonomy
+
+
+# TODO: Import Custom Taxonomy 
 INSERT INTO wordpress.wp_term_taxonomy
 	(term_id, taxonomy, description, parent)
 	SELECT DISTINCT
 		d.tid `term_id`,
-		'post_tag' `taxonomy`,
+		'category' `taxonomy`,
 		d.description `description`,
 		h.parent `parent`
 	FROM drupal_wp.d_term_data d
@@ -98,7 +100,7 @@ UPDATE wordpress.wp_term_taxonomy tt
 
 # Custom Post Type
 UPDATE wordpress.wp_posts
-	SET post_type = 'scholarship-post'
+	SET post_type = 'post'
 	WHERE post_type IN ('scholarship');
 
 # POST/TAG RELATIONSHIPS
@@ -106,7 +108,8 @@ INSERT INTO wordpress.wp_term_relationships (object_id, term_taxonomy_id)
 	SELECT DISTINCT nid, tid FROM drupal_wp.d_term_node
 ;
 
-# Update tag counts.
+# Update tag counts. 
+# TODO: need to update college taxonomy counts
 UPDATE wordpress.wp_term_taxonomy tt
 	SET `count` = (
 		SELECT COUNT(tr.object_id)
@@ -118,9 +121,9 @@ UPDATE wordpress.wp_term_taxonomy tt
 
 # Fix taxonomy; http://www.mikesmullin.com/development/migrate-convert-import-drupal-5-to-wordpress-27/#comment-27140
 UPDATE IGNORE wordpress.wp_term_relationships, wordpress.wp_term_taxonomy
-	SET wordpress.wp_term_relationships.term_taxonomy_id = wordpress.wp_term_taxonomy.term_taxonomy_id
-	WHERE wordpress.wp_term_relationships.term_taxonomy_id = wordpress.wp_term_taxonomy.term_id
-;
+SET wordpress.wp_term_relationships.term_taxonomy_id = wordpress.wp_term_taxonomy.term_taxonomy_id
+ 	WHERE wordpress.wp_term_relationships.term_taxonomy_id = wordpress.wp_term_taxonomy.term_id
+ ;
 
 # OPTIONAL ADDITIONS -- REMOVE ALL BELOW IF NOT APPLICABLE TO YOUR CONFIGURATION
 
