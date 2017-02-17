@@ -25,10 +25,16 @@ TRUNCATE TABLE wordpress.wp_terms;
 
 # TAGS 
 # Using REPLACE prevents script from breaking if Drupal contains duplicate terms.
+# REPLACE (str1, str2, str3)
+# In str1, find where str2 occurs, and replace it with str3.
+# REPLACE(txt, SUBSTRING(txt, LOCATE('(', txt), LENGTH(txt) - LOCATE(')', REVERSE(txt)) - LOCATE('(', txt) + 2), '')
+
 REPLACE INTO wordpress.wp_terms
 	(term_id, `name`, slug, term_group)
-	SELECT DISTINCT
-		d.tid, d.name, REPLACE(LOWER(d.name), ' ', '_'), 0
+	SELECT DISTINCT 
+	   # d.tid, d.name, REPLACE(REPLACE(REPLACE(LOWER(d.name), ',', ' and'), '&', 'and'), ' ', '_'), 0
+	    d.tid, d.name, 
+	    REPLACE(REPLACE(REPLACE(REPLACE(LOWER(d.name), SUBSTRING(LOWER(d.name), LOCATE('(', LOWER(d.name)), LENGTH(LOWER(d.name)) - LOCATE(')', REVERSE(LOWER(d.name))) - LOCATE('(', LOWER(d.name)) + 2), ''), ',', ' and'), '&', 'and'), ' ', '_'), 0
 	FROM drupal_wp.d_term_data d
 	INNER JOIN drupal_wp.d_term_hierarchy h
 		USING(tid)
@@ -46,7 +52,7 @@ INSERT INTO wordpress.wp_term_taxonomy
 	(term_id, taxonomy, description, parent)
 	SELECT DISTINCT
 		d.tid `term_id`,
-		'post_tag' `taxonomy`,
+		'category' `taxonomy`,
 		d.description `description`,
 		h.parent `parent`
 	FROM drupal_wp.d_term_data d
@@ -151,4 +157,4 @@ UPDATE wordpress.wp_posts
 ;
 
 # convert all tags to categories
-UPDATE wp_term_taxonomy SET taxonomy='category' WHERE taxonomy='post_tag'
+--UPDATE wp_term_taxonomy SET taxonomy='category' WHERE taxonomy='post_tag'
