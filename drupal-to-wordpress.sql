@@ -46,7 +46,7 @@ INSERT INTO wordpress.wp_term_taxonomy
 	(term_id, taxonomy, description, parent)
 	SELECT DISTINCT
 		d.tid `term_id`,
-		'category' `taxonomy`,
+		'post_tag' `taxonomy`,
 		d.description `description`,
 		h.parent `parent`
 	FROM drupal_wp.d_term_data d
@@ -120,7 +120,7 @@ UPDATE wordpress.wp_term_taxonomy tt
 
 
 # Fix taxonomy; http://www.mikesmullin.com/development/migrate-convert-import-drupal-5-to-wordpress-27/#comment-27140
-UPDATE IGNORE wordpress.wp_term_relationships, wordpress.wp_term_taxonomy
+UPDATE wordpress.wp_term_relationships, wordpress.wp_term_taxonomy
 SET wordpress.wp_term_relationships.term_taxonomy_id = wordpress.wp_term_taxonomy.term_taxonomy_id
  	WHERE wordpress.wp_term_relationships.term_taxonomy_id = wordpress.wp_term_taxonomy.term_id
  ;
@@ -149,3 +149,6 @@ UPDATE wordpress.wp_posts
 	SET post_name =
 	REVERSE(SUBSTRING(REVERSE(post_name),1,LOCATE('/',REVERSE(post_name))-1))
 ;
+
+# convert all tags to categories
+UPDATE wp_term_taxonomy SET taxonomy='category' WHERE taxonomy='post_tag'
