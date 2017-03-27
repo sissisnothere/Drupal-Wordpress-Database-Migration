@@ -7,6 +7,11 @@
 
 
 # Changelog
+# 06.12.2016 - Updated by Hywel Llewellyn  http://www.hywel.me to support WordPress 4.5
+# 07.29.2010 - Updated by Scott Anderson / Room 34 Creative Services http://blog.room34.com/archives/4530
+# 02.06.2009 - Updated by Mike Smullin http://www.mikesmullin.com/development/migrate-convert-import-drupal-5-to-wordpress-27/
+# 05.15.2007 - Updated by D’Arcy Norman http://www.darcynorman.net/2007/05/15/how-to-migrate-from-drupal-5-to-wordpress-2/
+# 05.19.2006 - Created by Dave Dash http://spindrop.us/2006/05/19/migrating-from-drupal-47-to-wordpress/
 # 02.07.2017 - updated by Xixi R to support Drupal 4 to Wordpress 4.7 Miguration 
 
 
@@ -23,7 +28,7 @@ TRUNCATE TABLE wordpress.wp_term_taxonomy;
 TRUNCATE TABLE wordpress.wp_terms;
 
 
-# TAGS 
+# insert college into term
 # Using REPLACE prevents script from breaking if Drupal contains duplicate terms.
 # REPLACE (str1, str2, str3)
 # In str1, find where str2 occurs, and replace it with str3.
@@ -34,7 +39,14 @@ REPLACE INTO wordpress.wp_terms
 	SELECT DISTINCT 
 	   # d.tid, d.name, REPLACE(REPLACE(REPLACE(LOWER(d.name), ',', ' and'), '&', 'and'), ' ', '_'), 0
 	    d.tid, d.name, 
-	    REPLACE(REPLACE(REPLACE(REPLACE(LOWER(d.name), SUBSTRING(LOWER(d.name), LOCATE('(', LOWER(d.name)), LENGTH(LOWER(d.name)) - LOCATE(')', REVERSE(LOWER(d.name))) - LOCATE('(', LOWER(d.name)) + 2), ''), ',', ' and'), '&', 'and'), ' ', '_'), 0
+	    REPLACE(
+	    	REPLACE(
+	    		REPLACE( # remove everything within ()
+	    			REPLACE(LOWER(d.name), SUBSTRING(LOWER(d.name), LOCATE('(', LOWER(d.name)), LENGTH(LOWER(d.name)) - LOCATE(')', REVERSE(LOWER(d.name))) - LOCATE('(', LOWER(d.name)) + 2), '')
+	    				, ',', ' and') #replace',' with 'and'
+	    		, '&', 'and') #replace'&', with 'and'
+	    	, ' ', '_') #replace ' ' with '_'
+	    , 0
 	FROM drupal_wp.d_term_data d
 	INNER JOIN drupal_wp.d_term_hierarchy h
 		USING(tid)
@@ -47,7 +59,7 @@ REPLACE INTO wordpress.wp_terms
 ;
 
 
-# TODO: Import Custom Taxonomy 
+# IMPORT college to Category
 INSERT INTO wordpress.wp_term_taxonomy
 	(term_id, taxonomy, description, parent)
 	SELECT DISTINCT
@@ -55,6 +67,32 @@ INSERT INTO wordpress.wp_term_taxonomy
 		'category' `taxonomy`,
 		d.description `description`,
 		h.parent `parent`
+	FROM drupal_wp.d_term_data d
+	INNER JOIN drupal_wp.d_term_hierarchy h
+		USING(tid)
+	INNER JOIN drupal_wp.d_term_node n
+		USING(tid)
+	WHERE (1
+	 	# This helps eliminate spam tags from import; uncomment if necessary.
+	 	# AND LENGTH(d.name) < 50
+	)
+;
+
+# Insert major into term
+
+REPLACE INTO wordpress.wp_terms
+	(term_id, `name`, slug, term_group)
+	SELECT DISTINCT 
+	   # d.tid, d.name, REPLACE(REPLACE(REPLACE(LOWER(d.name), ',', ' and'), '&', 'and'), ' ', '_'), 0
+	    d.tid, d.name, 
+	    REPLACE(
+	    	REPLACE(
+	    		REPLACE( # remove everything within ()
+	    			REPLACE(LOWER(d.name), SUBSTRING(LOWER(d.name), LOCATE('(', LOWER(d.name)), LENGTH(LOWER(d.name)) - LOCATE(')', REVERSE(LOWER(d.name))) - LOCATE('(', LOWER(d.name)) + 2), '')
+	    				, ',', ' and') #replace',' with 'and'
+	    		, '&', 'and') #replace'&', with 'and'
+	    	, ' ', '_') #replace ' ' with '_'
+	    , 0
 	FROM drupal_wp.d_term_data d
 	INNER JOIN drupal_wp.d_term_hierarchy h
 		USING(tid)
@@ -103,6 +141,8 @@ UPDATE wordpress.wp_term_taxonomy tt
 	)
 ;
 
+# POSTMETA 
+
 
 # Custom Post Type
 UPDATE wordpress.wp_posts
@@ -122,6 +162,103 @@ UPDATE wordpress.wp_term_taxonomy tt
 		FROM wordpress.wp_term_relationships tr
 		WHERE tr.term_taxonomy_id = tt.term_taxonomy_id
 	)
+;
+
+#insert NEEDBASED SCHOLARSHIP to wp_postmeta as a custom field
+INSERT INTO wordpress.wp_postmeta
+    (post_id, meta_value, meta_key)        
+    SELECT 
+        tt.nid `post_id`,
+        tt.field_need_value `meta_value`,
+        'field_need_value' `meta_key`  
+        FROM drupal_wp.d_content_type_scholarship tt
+        INNER JOIN
+            (
+            SELECT nid, MAX(vid) AS MaxVID
+            FROM drupal_wp.d_content_type_scholarship
+            GROUP BY nid
+            ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+;
+
+#insert UF SCHOLARSHIP to wp_postmeta as a custom field
+INSERT INTO wordpress.wp_postmeta
+    (post_id, meta_value, meta_key)        
+    SELECT 
+        tt.nid `post_id`,
+        tt.field_uf_value `meta_value`,
+        'field_uf_value' `meta_key`  
+        FROM drupal_wp.d_content_type_scholarship tt
+        INNER JOIN
+            (
+            SELECT nid, MAX(vid) AS MaxVID
+            FROM drupal_wp.d_content_type_scholarship
+            GROUP BY nid
+            ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+;
+
+#insert GPA  to wp_postmeta as a custom field
+INSERT INTO wordpress.wp_postmeta
+    (post_id, meta_value, meta_key)        
+    SELECT 
+        tt.nid `post_id`,
+        tt.field_gpa_value `meta_value`,
+        'field_gpa_value' `meta_key`  
+        FROM drupal_wp.d_content_type_scholarship tt
+        INNER JOIN
+            (
+            SELECT nid, MAX(vid) AS MaxVID
+            FROM drupal_wp.d_content_type_scholarship
+            GROUP BY nid
+            ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+;
+
+
+#insert DEADLINE to wp_postmeta as a custom field
+INSERT INTO wordpress.wp_postmeta
+    (post_id, meta_value, meta_key)        
+    SELECT 
+        tt.nid `post_id`,
+        tt.field_deadline_value `meta_value`,
+        'field_deadline_value' `meta_key`  
+        FROM drupal_wp.d_content_type_scholarship tt
+        INNER JOIN
+            (
+            SELECT nid, MAX(vid) AS MaxVID
+            FROM drupal_wp.d_content_type_scholarship
+            GROUP BY nid
+            ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+;
+
+#insert VALUE to wp_postmeta as a custom field
+INSERT INTO wordpress.wp_postmeta
+    (post_id, meta_value, meta_key)        
+    SELECT 
+        tt.nid `post_id`,
+        tt.field_value_value `meta_value`,
+        'field_value_value' `meta_key`  
+        FROM drupal_wp.d_content_type_scholarship tt
+        INNER JOIN
+            (
+            SELECT nid, MAX(vid) AS MaxVID
+            FROM drupal_wp.d_content_type_scholarship
+            GROUP BY nid
+            ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+;
+
+#insert EXPIRE to wp_postmeta as a custom field
+INSERT INTO wordpress.wp_postmeta
+    (post_id, meta_value, meta_key)        
+    SELECT 
+        tt.nid `post_id`,
+        tt.field_expire_value `meta_value`,
+        'field_expire_value' `meta_key`  
+        FROM drupal_wp.d_content_type_scholarship tt
+        INNER JOIN
+            (
+            SELECT nid, MAX(vid) AS MaxVID
+            FROM drupal_wp.d_content_type_scholarship
+            GROUP BY nid
+            ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
 ;
 
 
@@ -157,4 +294,4 @@ UPDATE wordpress.wp_posts
 ;
 
 # convert all tags to categories
---UPDATE wp_term_taxonomy SET taxonomy='category' WHERE taxonomy='post_tag'
+# UPDATE wp_term_taxonomy SET taxonomy='category' WHERE taxonomy='post_tag'
