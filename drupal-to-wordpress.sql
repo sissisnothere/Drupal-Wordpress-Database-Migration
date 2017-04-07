@@ -78,31 +78,6 @@ INSERT INTO wordpress.wp_term_taxonomy
 	)
 ;
 
-# Insert major into term
-
-REPLACE INTO wordpress.wp_terms
-	(term_id, `name`, slug, term_group)
-	SELECT DISTINCT 
-	   # d.tid, d.name, REPLACE(REPLACE(REPLACE(LOWER(d.name), ',', ' and'), '&', 'and'), ' ', '_'), 0
-	    d.tid, d.name, 
-	    REPLACE(
-	    	REPLACE(
-	    		REPLACE( # remove everything within ()
-	    			REPLACE(LOWER(d.name), SUBSTRING(LOWER(d.name), LOCATE('(', LOWER(d.name)), LENGTH(LOWER(d.name)) - LOCATE(')', REVERSE(LOWER(d.name))) - LOCATE('(', LOWER(d.name)) + 2), '')
-	    				, ',', ' and') #replace',' with 'and'
-	    		, '&', 'and') #replace'&', with 'and'
-	    	, ' ', '_') #replace ' ' with '_'
-	    , 0
-	FROM drupal_wp.d_term_data d
-	INNER JOIN drupal_wp.d_term_hierarchy h
-		USING(tid)
-	INNER JOIN drupal_wp.d_term_node n
-		USING(tid)
-	WHERE (1
-	 	# This helps eliminate spam tags from import; uncomment if necessary.
-	 	# AND LENGTH(d.name) < 50
-	)
-;
 
 # POSTS
 # Keeps private posts hidden.
@@ -210,6 +185,7 @@ INSERT INTO wordpress.wp_postmeta
             FROM drupal_wp.d_content_type_scholarship
             GROUP BY nid
             ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+        WHERE tt.field_gpa_value IS NOT NULL
 ;
 
 
@@ -227,6 +203,7 @@ INSERT INTO wordpress.wp_postmeta
             FROM drupal_wp.d_content_type_scholarship
             GROUP BY nid
             ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+     WHERE tt.field_deadline_value IS NOT NULL
 ;
 
 #insert VALUE to wp_postmeta as a custom field
@@ -237,12 +214,13 @@ INSERT INTO wordpress.wp_postmeta
         tt.field_value_value `meta_value`,
         'field_value_value' `meta_key`  
         FROM drupal_wp.d_content_type_scholarship tt
-        INNER JOIN
+        INNER JOIN	
             (
             SELECT nid, MAX(vid) AS MaxVID
             FROM drupal_wp.d_content_type_scholarship
             GROUP BY nid
             ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+     WHERE tt.field_value_value IS NOT NULL
 ;
 
 #insert EXPIRE to wp_postmeta as a custom field
@@ -259,8 +237,36 @@ INSERT INTO wordpress.wp_postmeta
             FROM drupal_wp.d_content_type_scholarship
             GROUP BY nid
             ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+    WHERE  tt.field_expire_value IS NOT NULL
 ;
 
+#insert REQUIRED CLASS STANDARD to wp_postmeta as a custom field
+INSERT INTO wordpress.wp_postmeta
+    (post_id, meta_value, meta_key)        
+    SELECT 
+        tt.nid `post_id`,
+        tt.field_class_value `meta_value`,
+        'field_class_value' `meta_key`  
+        FROM drupal_wp.d_content_field_class tt
+        INNER JOIN
+            (
+            SELECT nid, MAX(vid) AS MaxVID
+            FROM drupal_wp.d_content_field_class
+            GROUP BY nid
+            ) groupedtt ON tt.nid = groupedtt .nid AND tt.vid = groupedtt.MaxVID
+     WHERE tt.field_class_value IS NOT NULL
+;
+
+#insert MAJORS to wp_postmeta as a custom field
+INSERT INTO wordpress.wp_postmeta
+    (post_id, meta_value, meta_key)        
+    SELECT 
+        tt.sid `post_id`,
+        tt.data `meta_value`,
+        'field_majors_value' `meta_key`  
+        FROM drupal_wp.d_search_dataset tt
+        WHERE tt.type IN ('field_3')
+;
 
 # Fix taxonomy; http://www.mikesmullin.com/development/migrate-convert-import-drupal-5-to-wordpress-27/#comment-27140
 UPDATE wordpress.wp_term_relationships, wordpress.wp_term_taxonomy
